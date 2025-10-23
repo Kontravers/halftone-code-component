@@ -61,7 +61,7 @@ export function HalftoneEffect(props: HalftoneEffectProps) {
     } = props
 
     const canvasRef = useRef<HTMLCanvasElement>(null)
-    const mediaRef = useRef<HTMLImageElement | HTMLVideoElement>(null)
+    const mediaRef = useRef<HTMLImageElement | HTMLVideoElement | null>(null)
     const reglRef = useRef<REGL.Regl | null>(null)
     const textureRef = useRef<REGL.Texture2D | null>(null)
     const customShapeTextureRef = useRef<REGL.Texture2D | null>(null)
