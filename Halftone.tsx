@@ -10,6 +10,7 @@ import { useEffect, useRef, useState } from "react"
 export default function Halftone(props) {
     const {
         image,
+        video,
         dotSize = 10,
         spacing = 20,
         angle = 45,
@@ -23,8 +24,8 @@ export default function Halftone(props) {
         height,
     } = props
 
-    // Use image prop if provided, otherwise fallback to default
-    const src = image || "https://images.unsplash.com/photo-1506748686214-e9df14d4d9d0?w=800"
+    // Use video if provided, otherwise image, otherwise default
+    const src = video || image || "https://images.unsplash.com/photo-1506748686214-e9df14d4d9d0?w=800"
 
     const canvasRef = useRef<HTMLCanvasElement>(null)
     const containerRef = useRef<HTMLDivElement>(null)
@@ -330,9 +331,9 @@ export default function Halftone(props) {
             animationFrameRef.current = null
         }
 
-        // Detect if source is a video
+        // Detect if source is a video (either from video prop or file extension)
         const videoExtensions = [".mp4", ".webm", ".ogg", ".mov"]
-        const isVideoSource = videoExtensions.some((ext) => src.toLowerCase().includes(ext))
+        const isVideoSource = !!video || videoExtensions.some((ext) => src.toLowerCase().includes(ext))
 
         if (isVideoSource) {
             // Load video
@@ -493,6 +494,11 @@ addPropertyControls(Halftone, {
     image: {
         type: ControlType.Image,
         title: "Image",
+    },
+    video: {
+        type: ControlType.File,
+        title: "Video",
+        allowedFileTypes: ["mp4", "webm", "ogg", "mov"],
     },
     type: {
         type: ControlType.Enum,
