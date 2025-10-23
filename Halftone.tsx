@@ -4,8 +4,8 @@ import { addPropertyControls, ControlType } from "framer"
 import { useEffect, useRef, useState } from "react"
 
 /**
- * @framerSupportedLayoutWidth any
- * @framerSupportedLayoutHeight any
+ * @framerSupportedLayoutWidth auto
+ * @framerSupportedLayoutHeight auto
  */
 export default function Halftone(props) {
     const {
@@ -19,6 +19,8 @@ export default function Halftone(props) {
         dotShape = "circle",
         customShapeUrl,
         pattern = "grid-regular",
+        width,
+        height,
     } = props
 
     // Use image prop if provided, otherwise fallback to default
@@ -30,8 +32,15 @@ export default function Halftone(props) {
     const programRef = useRef<WebGLProgram | null>(null)
     const textureRef = useRef<WebGLTexture | null>(null)
     const imageRef = useRef<HTMLImageElement | null>(null)
-    const [imageLoaded, setImageLoaded] = useState(false)
-    const [canvasSize, setCanvasSize] = useState({ width: 600, height: 400 })
+    const videoRef = useRef<HTMLVideoElement | null>(null)
+    const animationFrameRef = useRef<number | null>(null)
+    const [mediaLoaded, setMediaLoaded] = useState(false)
+    const [mediaDimensions, setMediaDimensions] = useState({ width: 600, height: 400 })
+    const [isVideo, setIsVideo] = useState(false)
+
+    // Calculate canvas size: use props if provided, otherwise use media dimensions
+    const canvasWidth = width || mediaDimensions.width
+    const canvasHeight = height || mediaDimensions.height
 
     // Vertex shader - passes through position and UV coordinates
     const vertexShaderSource = `
@@ -246,29 +255,6 @@ export default function Halftone(props) {
         return program
     }
 
-    // Handle container resize
-    useEffect(() => {
-        if (!containerRef.current) return
-
-        const updateSize = () => {
-            if (containerRef.current) {
-                const { width, height } = containerRef.current.getBoundingClientRect()
-                setCanvasSize({ width: Math.floor(width), height: Math.floor(height) })
-            }
-        }
-
-        // Initial size
-        updateSize()
-
-        // Watch for size changes
-        const resizeObserver = new ResizeObserver(updateSize)
-        resizeObserver.observe(containerRef.current)
-
-        return () => {
-            resizeObserver.disconnect()
-        }
-    }, [])
-
     // Initialize WebGL
     useEffect(() => {
         if (!canvasRef.current) return
@@ -320,6 +306,9 @@ export default function Halftone(props) {
         textureRef.current = texture
 
         return () => {
+            if (animationFrameRef.current) {
+                cancelAnimationFrame(animationFrameRef.current)
+            }
             if (textureRef.current) {
                 gl.deleteTexture(textureRef.current)
             }
@@ -329,43 +318,84 @@ export default function Halftone(props) {
         }
     }, [])
 
-    // Load image
+    // Load media (image or video)
     useEffect(() => {
         if (!src) return
 
-        const image = new Image()
-        image.crossOrigin = "anonymous"
-
-        image.onload = () => {
-            imageRef.current = image
-            setImageLoaded(true)
+        // Reset state
+        setMediaLoaded(false)
+        setIsVideo(false)
+        if (animationFrameRef.current) {
+            cancelAnimationFrame(animationFrameRef.current)
+            animationFrameRef.current = null
         }
 
-        image.onerror = () => {
-            console.error("Failed to load image:", src)
-        }
+        // Detect if source is a video
+        const videoExtensions = [".mp4", ".webm", ".ogg", ".mov"]
+        const isVideoSource = videoExtensions.some((ext) => src.toLowerCase().includes(ext))
 
-        image.src = src
+        if (isVideoSource) {
+            // Load video
+            const video = document.createElement("video")
+            video.crossOrigin = "anonymous"
+            video.loop = true
+            video.muted = true
+            video.playsInline = true
+
+            video.onloadedmetadata = () => {
+                videoRef.current = video
+                setMediaDimensions({ width: video.videoWidth, height: video.videoHeight })
+                setIsVideo(true)
+                setMediaLoaded(true)
+                video.play()
+            }
+
+            video.onerror = () => {
+                console.error("Failed to load video:", src)
+            }
+
+            video.src = src
+        } else {
+            // Load image
+            const img = new Image()
+            img.crossOrigin = "anonymous"
+
+            img.onload = () => {
+                imageRef.current = img
+                setMediaDimensions({ width: img.width, height: img.height })
+                setIsVideo(false)
+                setMediaLoaded(true)
+            }
+
+            img.onerror = () => {
+                console.error("Failed to load image:", src)
+            }
+
+            img.src = src
+        }
     }, [src])
 
     // Render effect
     useEffect(() => {
-        if (!glRef.current || !programRef.current || !textureRef.current || !imageLoaded || !imageRef.current) {
+        if (!glRef.current || !programRef.current || !textureRef.current || !mediaLoaded) {
             return
         }
 
         const gl = glRef.current
         const program = programRef.current
         const texture = textureRef.current
-        const image = imageRef.current
 
-        // Upload texture
-        gl.bindTexture(gl.TEXTURE_2D, texture)
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image)
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
+        const renderFrame = () => {
+            const mediaElement = isVideo ? videoRef.current : imageRef.current
+            if (!mediaElement) return
+
+            // Upload texture
+            gl.bindTexture(gl.TEXTURE_2D, texture)
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, mediaElement)
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
 
         // Set uniforms
         const resolutionLocation = gl.getUniformLocation(program, "resolution")
@@ -379,7 +409,7 @@ export default function Halftone(props) {
         const patternLocation = gl.getUniformLocation(program, "pattern")
         const textureLocation = gl.getUniformLocation(program, "texture")
 
-        gl.uniform2f(resolutionLocation, canvasSize.width, canvasSize.height)
+        gl.uniform2f(resolutionLocation, canvasWidth, canvasHeight)
         gl.uniform1f(dotSizeLocation, dotSize)
         gl.uniform1f(spacingLocation, spacing)
         gl.uniform1f(angleLocation, angle)
@@ -423,33 +453,39 @@ export default function Halftone(props) {
 
         gl.uniform1i(textureLocation, 0)
 
-        // Draw
-        gl.viewport(0, 0, canvasSize.width, canvasSize.height)
-        gl.clearColor(1, 1, 1, 1)
-        gl.clear(gl.COLOR_BUFFER_BIT)
-        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
-    }, [imageLoaded, dotSize, spacing, angle, dotColor, duotoneColor2, type, dotShape, pattern, canvasSize])
+            // Draw
+            gl.viewport(0, 0, canvasWidth, canvasHeight)
+            gl.clearColor(1, 1, 1, 1)
+            gl.clear(gl.COLOR_BUFFER_BIT)
+            gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
+
+            // Continue rendering for video
+            if (isVideo) {
+                animationFrameRef.current = requestAnimationFrame(renderFrame)
+            }
+        }
+
+        // Start rendering
+        renderFrame()
+
+        return () => {
+            if (animationFrameRef.current) {
+                cancelAnimationFrame(animationFrameRef.current)
+            }
+        }
+    }, [mediaLoaded, isVideo, dotSize, spacing, angle, dotColor, duotoneColor2, type, dotShape, pattern, canvasWidth, canvasHeight])
 
     return (
-        <div
-            ref={containerRef}
+        <canvas
+            ref={canvasRef}
+            width={canvasWidth}
+            height={canvasHeight}
             style={{
-                width: "100%",
-                height: "100%",
-                position: "relative",
+                width: canvasWidth,
+                height: canvasHeight,
+                display: "block",
             }}
-        >
-            <canvas
-                ref={canvasRef}
-                width={canvasSize.width}
-                height={canvasSize.height}
-                style={{
-                    width: "100%",
-                    height: "100%",
-                    display: "block",
-                }}
-            />
-        </div>
+        />
     )
 }
 
@@ -519,5 +555,21 @@ addPropertyControls(Halftone, {
         title: "Duotone Color 2",
         defaultValue: "#ff0000",
         hidden: (props) => props.type !== "duotone",
+    },
+    width: {
+        type: ControlType.Number,
+        title: "Width",
+        min: 100,
+        max: 2000,
+        step: 10,
+        displayStepper: true,
+    },
+    height: {
+        type: ControlType.Number,
+        title: "Height",
+        min: 100,
+        max: 2000,
+        step: 10,
+        displayStepper: true,
     },
 })
