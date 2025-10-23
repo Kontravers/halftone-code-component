@@ -1,0 +1,33 @@
+{
+  "name": "@ivanvukovic/halftone-effect",
+  "version": "1.0.0",
+  "description": "Real-time halftone effect for images and videos in Framer",
+  "main": "dist/HalftoneEffect.js",
+  "types": "dist/HalftoneEffect.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "keywords": [
+    "framer",
+    "halftone",
+    "webgl",
+    "shader",
+    "image-effect",
+    "video-effect"
+  ],
+  "author": "Ivan Vukovic",
+  "license": "MIT",
+  "peerDependencies": {
+    "framer": "^2.0.0",
+    "framer-motion": "^10.0.0 || ^11.0.0",
+    "react": "^18.0.0"
+  },
+  "dependencies": {
+    "regl": "^2.1.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.0",
+    "typescript": "^5.0.0"
+  }
+}
