@@ -436,25 +436,40 @@ export default function Halftone(props) {
         }
         gl.uniform1i(patternLocation, patternMap[pattern] || 0)
 
-        // Parse hex color to RGB
-        const hexToRgb = (hex: string) => {
-            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
-            return result
-                ? {
-                      r: parseInt(result[1], 16) / 255,
-                      g: parseInt(result[2], 16) / 255,
-                      b: parseInt(result[3], 16) / 255,
-                  }
-                : { r: 0, g: 0, b: 0 }
+        // Parse color to RGB (handles hex, rgb, rgba formats)
+        const parseColor = (colorString: string) => {
+            // Handle hex format
+            const hexMatch = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(colorString)
+            if (hexMatch) {
+                return {
+                    r: parseInt(hexMatch[1], 16) / 255,
+                    g: parseInt(hexMatch[2], 16) / 255,
+                    b: parseInt(hexMatch[3], 16) / 255,
+                }
+            }
+
+            // Handle rgb/rgba format
+            const rgbMatch = /rgba?\((\d+),\s*(\d+),\s*(\d+)/.exec(colorString)
+            if (rgbMatch) {
+                return {
+                    r: parseInt(rgbMatch[1]) / 255,
+                    g: parseInt(rgbMatch[2]) / 255,
+                    b: parseInt(rgbMatch[3]) / 255,
+                }
+            }
+
+            // Fallback to black
+            console.warn("Could not parse color:", colorString)
+            return { r: 0, g: 0, b: 0 }
         }
 
-        const color = hexToRgb(dotColor)
+        const color = parseColor(dotColor)
         gl.uniform3f(dotColorLocation, color.r, color.g, color.b)
 
-        const color2 = hexToRgb(duotoneColor2)
+        const color2 = parseColor(duotoneColor2)
         gl.uniform3f(duotoneColor2Location, color2.r, color2.g, color2.b)
 
-        const bgColor = hexToRgb(backgroundColor)
+        const bgColor = parseColor(backgroundColor)
         gl.uniform3f(backgroundColorLocation, bgColor.r, bgColor.g, bgColor.b)
 
         gl.uniform1i(textureLocation, 0)
