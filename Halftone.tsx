@@ -17,6 +17,7 @@ export default function Halftone(props) {
         dotColor = "#000000",
         type = "monochrome",
         duotoneColor2 = "#ff0000",
+        backgroundColor = "#ffffff",
         dotShape = "circle",
         customShapeUrl,
         pattern = "grid-regular",
@@ -64,6 +65,7 @@ export default function Halftone(props) {
         uniform float angle;
         uniform vec3 dotColor;
         uniform vec3 duotoneColor2;
+        uniform vec3 backgroundColor;
         uniform int halftoneType; // 0 = monochrome, 1 = duotone, 2 = sampled, 3 = cmyk
         uniform int dotShape; // 0 = circle, 1 = rectangle, 2 = line, 3 = custom
         uniform int pattern; // 0 = grid-regular, 1 = grid-alternating, 2 = grid-dither, 3-5 = radial
@@ -189,11 +191,10 @@ export default function Halftone(props) {
             }
 
             // Determine final color based on halftone type
-            vec3 backgroundColor = vec3(1.0, 1.0, 1.0);
             vec3 finalColor = backgroundColor;
 
             if (halftoneType == 0) {
-                // Monochrome: white background, single colored dots
+                // Monochrome: background color with single colored dots
                 finalColor = mix(backgroundColor, dotColor, shape);
             } else if (halftoneType == 1) {
                 // Duotone: interpolate dot color based on brightness
@@ -405,6 +406,7 @@ export default function Halftone(props) {
         const angleLocation = gl.getUniformLocation(program, "angle")
         const dotColorLocation = gl.getUniformLocation(program, "dotColor")
         const duotoneColor2Location = gl.getUniformLocation(program, "duotoneColor2")
+        const backgroundColorLocation = gl.getUniformLocation(program, "backgroundColor")
         const halftoneTypeLocation = gl.getUniformLocation(program, "halftoneType")
         const dotShapeLocation = gl.getUniformLocation(program, "dotShape")
         const patternLocation = gl.getUniformLocation(program, "pattern")
@@ -452,6 +454,9 @@ export default function Halftone(props) {
         const color2 = hexToRgb(duotoneColor2)
         gl.uniform3f(duotoneColor2Location, color2.r, color2.g, color2.b)
 
+        const bgColor = hexToRgb(backgroundColor)
+        gl.uniform3f(backgroundColorLocation, bgColor.r, bgColor.g, bgColor.b)
+
         gl.uniform1i(textureLocation, 0)
 
             // Draw
@@ -474,7 +479,7 @@ export default function Halftone(props) {
                 cancelAnimationFrame(animationFrameRef.current)
             }
         }
-    }, [mediaLoaded, isVideo, dotSize, spacing, angle, dotColor, duotoneColor2, type, dotShape, pattern, canvasWidth, canvasHeight])
+    }, [mediaLoaded, isVideo, dotSize, spacing, angle, dotColor, duotoneColor2, backgroundColor, type, dotShape, pattern, canvasWidth, canvasHeight])
 
     return (
         <canvas
@@ -561,6 +566,11 @@ addPropertyControls(Halftone, {
         title: "Duotone Color 2",
         defaultValue: "#ff0000",
         hidden: (props) => props.type !== "duotone",
+    },
+    backgroundColor: {
+        type: ControlType.Color,
+        title: "Background Color",
+        defaultValue: "#ffffff",
     },
     width: {
         type: ControlType.Number,
