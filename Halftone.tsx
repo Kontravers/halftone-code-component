@@ -134,24 +134,31 @@ export default function Halftone(props) {
                 ) * spacing * 0.3; // 30% of spacing for subtle dithering
                 patternOffset = randomOffset;
             } else if (pattern == 3 || pattern == 4 || pattern == 5) {
-                // Radial patterns: rotate dots around center
+                // Radial patterns: create spoke/star pattern
                 vec2 center = resolution * 0.5;
-                vec2 toCenter = rotated - center;
+                vec2 toCenter = coord - center;
                 float dist = length(toCenter);
-                float baseAngle = atan(toCenter.y, toCenter.x);
+                float angleFromCenter = atan(toCenter.y, toCenter.x);
 
                 float spokes = 5.0;
                 if (pattern == 4) spokes = 7.0;
                 if (pattern == 5) spokes = 9.0;
 
-                // Create radial pattern by rotating based on distance
-                float radialRotation = dist * spokes / resolution.x;
+                // Calculate which spoke segment we're in
+                float spokeAngle = 2.0 * PI / spokes;
+                float currentSpoke = floor((angleFromCenter + PI) / spokeAngle);
 
-                // Add a slight spiral offset
-                patternOffset = vec2(
-                    cos(radialRotation) * spacing * 0.1,
-                    sin(radialRotation) * spacing * 0.1
-                );
+                // Rotation angle for this spoke
+                float spokeRotation = currentSpoke * spokeAngle;
+
+                // Offset alternating "rings" along each spoke to create the star pattern
+                float ringIndex = floor(dist / spacing);
+                if (mod(ringIndex, 2.0) == 1.0) {
+                    patternOffset = vec2(
+                        cos(spokeRotation) * spacing * 0.5,
+                        sin(spokeRotation) * spacing * 0.5
+                    );
+                }
             }
 
             // Grid cell position with pattern offset applied
