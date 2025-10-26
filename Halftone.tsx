@@ -113,29 +113,14 @@ export default function Halftone(props) {
         void main() {
             // Calculate grid coordinates
             vec2 coord = uv * resolution;
+            vec2 center = resolution * 0.5;
 
-            // Apply rotation
-            vec2 rotated = rotate2D(angle * PI / 180.0) * (coord - resolution * 0.5) + resolution * 0.5;
-
-            // Apply pattern offset
+            // Apply pattern offset BEFORE rotation for radial patterns
             vec2 patternOffset = vec2(0.0, 0.0);
-            vec2 gridIndex = floor(rotated / spacing);
+            vec2 workingCoord = coord;
 
-            if (pattern == 1) {
-                // Grid Alternating: offset every other row by half spacing
-                if (mod(gridIndex.y, 2.0) == 1.0) {
-                    patternOffset.x = spacing * 0.5;
-                }
-            } else if (pattern == 2) {
-                // Grid Dither: random offset for each cell
-                vec2 randomOffset = vec2(
-                    random(gridIndex) - 0.5,
-                    random(gridIndex + vec2(1.0, 0.0)) - 0.5
-                ) * spacing * 0.3; // 30% of spacing for subtle dithering
-                patternOffset = randomOffset;
-            } else if (pattern == 3 || pattern == 4 || pattern == 5) {
+            if (pattern == 3 || pattern == 4 || pattern == 5) {
                 // Radial patterns: create spoke/star pattern
-                vec2 center = resolution * 0.5;
                 vec2 toCenter = coord - center;
                 float dist = length(toCenter);
                 float angleFromCenter = atan(toCenter.y, toCenter.x);
@@ -159,15 +144,37 @@ export default function Halftone(props) {
                         sin(spokeRotation) * spacing * 0.5
                     );
                 }
+
+                workingCoord = coord - patternOffset;
             }
 
-            // Grid cell position with pattern offset applied
-            vec2 offsetRotated = rotated - patternOffset;
-            vec2 gridPos = mod(offsetRotated, spacing);
+            // Apply rotation
+            vec2 rotated = rotate2D(angle * PI / 180.0) * (workingCoord - center) + center;
+
+            // Apply grid pattern offsets (for non-radial patterns)
+            vec2 gridIndex = floor(rotated / spacing);
+
+            if (pattern == 1) {
+                // Grid Alternating: offset every other row by half spacing
+                if (mod(gridIndex.y, 2.0) == 1.0) {
+                    patternOffset.x = spacing * 0.5;
+                }
+                rotated = rotated - patternOffset;
+            } else if (pattern == 2) {
+                // Grid Dither: random offset for each cell
+                vec2 randomOffset = vec2(
+                    random(gridIndex) - 0.5,
+                    random(gridIndex + vec2(1.0, 0.0)) - 0.5
+                ) * spacing * 0.3; // 30% of spacing for subtle dithering
+                rotated = rotated - randomOffset;
+            }
+
+            // Grid cell position
+            vec2 gridPos = mod(rotated, spacing);
             vec2 cellCenter = gridPos - spacing * 0.5;
 
             // Calculate world position of grid cell center
-            vec2 gridCellWorldPos = offsetRotated - cellCenter;
+            vec2 gridCellWorldPos = rotated - cellCenter;
 
             // Rotate back to get UV coordinates for sampling
             vec2 unrotatedCellCenter = rotate2D(-angle * PI / 180.0) * (gridCellWorldPos - resolution * 0.5) + resolution * 0.5;
